@@ -31,7 +31,6 @@ LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
 IDI_ZENSUR              ICON                    "Zensur.ico"
-IDI_CALC                ICON                    "Calc.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -73,9 +72,9 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSM
 CAPTION "Über Zensur"
 FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
-    ICON            IDI_ZENSUR,IDC_MYICON,11,8,21,20
+    ICON            IDI_ZENSUR,IDC_MYICON,11,8,20,20
     LTEXT           "Zensur Version 3.0",IDC_STATIC,38,8,63,8,SS_NOPREFIX
-    LTEXT           "Copyright © 2007 Jan Möller. Alle Rechte vorbehalten.",IDC_STATIC,38,18,177,8
+    LTEXT           "Copyright © 2008 Jan Möller. Alle Rechte vorbehalten.",IDC_STATIC,38,18,177,8
     DEFPUSHBUTTON   "OK",IDOK,97,30,30,12,NOT WS_TABSTOP
 END
 

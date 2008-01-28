@@ -7,11 +7,11 @@ BOOL bErrorMsgDisplayed = FALSE;
 WNDPROC OldEditProc;
 HINSTANCE hInst;								// current instance
 HWND hWndDlg, hEditMarks, hBtnCalc, hLbAverage, hLbErrorMsg;
-TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
+TCHAR szTitle[MAX_LOADSTRING];					// the title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
 
 
-// Forward declarations of functions included in this code module:
+// forward declarations of functions included in this code module:
 ATOM				MyRegisterClass(HINSTANCE hInstance);
 BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndDlgProc(HWND, UINT, WPARAM, LPARAM);
@@ -32,12 +32,12 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 	InitCommonControls();
 
-	// Initialize global strings
+	// initialize global strings
 	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
 	LoadString(hInstance, IDC_ZENSURWIN32, szWindowClass, MAX_LOADSTRING);
 	MyRegisterClass(hInstance);
 
-	// Perform application initialization:
+	// perform application initialization:
 	if (!InitInstance (hInstance, nCmdShow)) 
 	{
 		return FALSE;
@@ -45,7 +45,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 	hAccelTable = LoadAccelerators(hInstance, (LPCTSTR)IDC_ACC_ZENSURWIN32);
 	
-	// Main message loop:	
+	// main message loop:	
 	while (GetMessage(&msg, NULL, 0, 0)) 
 	{
 		if (!TranslateAccelerator(hWndDlg, hAccelTable, &msg)) 
@@ -100,7 +100,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
 	HFONT EditFont, StaticFont;
 	
-	// Store instance handle in our global variable 
+	// store instance handle in our global variable 
 	hInst = hInstance;
    
 	hWndDlg = CreateDialog(hInst, MAKEINTRESOURCE(IDD_MAIN), 0, NULL);
@@ -109,10 +109,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	
 	
 	hEditMarks = GetDlgItem(hWndDlg, IDC_EDIT_MARKS);
-	// Change font of edit control
+	// change font of edit control
 	EditFont = CreateFont(-MulDiv(14, GetDeviceCaps(GetDC(hEditMarks), LOGPIXELSY), 72), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ANTIALIASED_QUALITY, 0, "Microsoft Sans Serif");
 	SendMessage(hEditMarks, WM_SETFONT, (WPARAM)EditFont, 0);	
-	// Set new window procedure for edit control
+	// set new window procedure for edit control
 	OldEditProc = (WNDPROC) SetWindowLongPtr(hEditMarks, GWL_WNDPROC, (LONG_PTR)EditProc);	
 
 
@@ -128,7 +128,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	return TRUE;
 }
 
-// Processes messages for the main window
+// processes messages for the main window
 LRESULT CALLBACK WndDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	int wmId, wmEvent;
@@ -188,10 +188,34 @@ LRESULT CALLBACK EditProc(HWND hEditMarksControl, UINT message, WPARAM wParam, L
 		SendMessage(hEditMarksControl, EM_SETSEL, 0, GetWindowTextLength(hEditMarks));
 		break;
 
-	case WM_KEYDOWN:
+	case WM_CHAR:
 		switch (wParam)
 		{
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+			ClearNotification();
+			Selection = SendMessage(hEditMarksControl, EM_GETSEL, 0, 0);
+			Selection = HIWORD(Selection) - LOWORD(Selection);
+			if (GetWindowTextLength(hEditMarks) >= MAX_NUM_OF_MARKS
+			    &&  Selection == 0) {
+				NotifyLimitedNumberOfMarks();
+				return 0;
+			}			
+			break;
+
+		case VK_BACK:			
+		case VK_DELETE:
+		case VK_LEFT:
+		case VK_RIGHT:
+			ClearNotification();
+			break;
+		
 		case VK_RETURN:
+			ClearNotification();
 			SendMessage(hBtnCalc, BM_SETSTATE, TRUE, 0);
 			UpdateWindow(hBtnCalc);			
 			SleepEx(100, TRUE);	
@@ -199,43 +223,17 @@ LRESULT CALLBACK EditProc(HWND hEditMarksControl, UINT message, WPARAM wParam, L
 			SendMessage(hWndDlg, WM_COMMAND, MAKELONG(IDC_BUTTON_BERECHNEN, BN_CLICKED), (LPARAM)hBtnCalc);			
 			SendMessage(hEditMarksControl, EM_SETSEL, 0, GetWindowTextLength(hEditMarks));
 			break;
-		}
-
-	case WM_CHAR:
-		switch (wParam)
-		{			
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-			Selection = SendMessage(hEditMarksControl, EM_GETSEL, 0, 0);
-			Selection = HIWORD(Selection) - LOWORD(Selection);
-			if (GetWindowTextLength(hEditMarks) >= MAX_NUM_OF_MARKS
-			    &&  Selection == 0) {
-				NotifyLimitedNumberOfMarks();
-				return 0;
-			}
-			break;
-
-		case VK_BACK:			
-		case VK_DELETE:
-		case VK_LEFT:
-		case VK_RIGHT:
-			break;
 		
 		default:
 			NotifyInvalidCharacter();
 			return 0;
 		}
-		ClearNotification();
 	}
 	
 	return CallWindowProc(OldEditProc, hEditMarksControl, message, wParam, lParam);
 }
 
-// Message handler for about box.
+// message handler for about box.
 
 LRESULT CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -278,21 +276,24 @@ void Calc()
 	}
 }
 
-void NotifyInvalidCharacter() {
+void NotifyInvalidCharacter()
+{
 	SetWindowText(hLbErrorMsg, TEXT("Sie können nur die Zahlen 1 bis 6 eingeben."));
 	bErrorMsgDisplayed = TRUE;
 }
 
-void NotifyLimitedNumberOfMarks() {
+void NotifyLimitedNumberOfMarks()
+{
 	SetWindowText(hLbErrorMsg, TEXT("Sie können maximal 50 Zensuren eingeben."));
 	bErrorMsgDisplayed = TRUE;
 }
 
-void ClearNotification() {
-	if (bErrorMsgDisplayed == TRUE) {
-		SetWindowText(hLbErrorMsg, TEXT(""));
-		InvalidateRect(hLbErrorMsg, NULL, TRUE);
-		RedrawWindow(hLbErrorMsg, NULL, NULL, RDW_ERASE|RDW_INVALIDATE|RDW_UPDATENOW);
+void ClearNotification()
+{
+	if (bErrorMsgDisplayed == TRUE)
+	{
+		SetWindowText(hLbErrorMsg, TEXT(""));		
+		RedrawWindow(hWndDlg, NULL, NULL, RDW_ERASE|RDW_INVALIDATE|RDW_UPDATENOW);
 		bErrorMsgDisplayed = FALSE;
 	}
 }

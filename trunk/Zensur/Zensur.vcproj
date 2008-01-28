@@ -211,14 +211,6 @@
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
 			>
 			<File
-				RelativePath=".\ASG.ico"
-				>
-			</File>
-			<File
-				RelativePath=".\Calc.ico"
-				>
-			</File>
-			<File
 				RelativePath=".\Zensur.exe.manifest"
 				>
 			</File>
@@ -228,10 +220,6 @@
 			</File>
 			<File
 				RelativePath=".\Zensur.rc"
-				>
-			</File>
-			<File
-				RelativePath=".\ZensurOld.ico"
 				>
 			</File>
 		</Filter>
