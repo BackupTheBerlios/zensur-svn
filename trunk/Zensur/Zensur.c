@@ -1,14 +1,25 @@
 #include "Zensur.h"
 #define MAX_LOADSTRING		100
 #define MAX_NUM_OF_MARKS	50
+#define NUM_EXT				4
 
 // Global Variables:
-BOOL bErrorMsgDisplayed = FALSE;
-WNDPROC OldEditProc;
-HINSTANCE hInst;								// current instance
-HWND hWndDlg, hEditMarks, hBtnCalc, hLbAverage, hLbErrorMsg;
-TCHAR szTitle[MAX_LOADSTRING];					// the title bar text
-TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
+static BOOL bErrorMsgDisplayed = FALSE;
+static HINSTANCE hInst;										// current instance
+static HWND hWndDlg;
+static SIZE DlgSizeBase;
+static SIZE DlgSizeExtOffSet;
+static HWND hBtnExt[NUM_EXT - 1];
+static HWND hEditMarks[NUM_EXT];
+static HWND hEditPercentage[NUM_EXT];
+static HWND hLbPercentage[NUM_EXT];
+static HWND hBtnCalc;
+static HWND hLbAverage, hLbErrorMsg;
+static LONG_PTR OldEditProc[NUM_EXT];
+static TCHAR szTitle[MAX_LOADSTRING];						// the title bar text
+static TCHAR szWindowClass[MAX_LOADSTRING];					// the main window class name
+
+static unsigned char percentages = 1;
 
 
 // forward declarations of functions included in this code module:
@@ -17,6 +28,7 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndDlgProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	EditProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
+void                UpdateUI(unsigned short);
 void                Calc();
 void				NotifyInvalidCharacter();
 void				NotifyLimitedNumberOfMarks();
@@ -98,23 +110,59 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //  create and display the main program window.
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
+	int i;
 	HFONT EditFont, StaticFont;
+	RECT rc0, rc1;
 	
 	// store instance handle in our global variable 
 	hInst = hInstance;
    
 	hWndDlg = CreateDialog(hInst, MAKEINTRESOURCE(IDD_MAIN), 0, NULL);
 	
-	hBtnCalc = GetDlgItem(hWndDlg, IDC_BUTTON_BERECHNEN);
+	hBtnCalc = GetDlgItem(hWndDlg, IDC_BUTTON_CALC);
 	
-	
-	hEditMarks = GetDlgItem(hWndDlg, IDC_EDIT_MARKS);
-	// change font of edit control
-	EditFont = CreateFont(-MulDiv(14, GetDeviceCaps(GetDC(hEditMarks), LOGPIXELSY), 72), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ANTIALIASED_QUALITY, 0, "Microsoft Sans Serif");
-	SendMessage(hEditMarks, WM_SETFONT, (WPARAM)EditFont, 0);	
-	// set new window procedure for edit control
-	OldEditProc = (WNDPROC) SetWindowLongPtr(hEditMarks, GWL_WNDPROC, (LONG_PTR)EditProc);	
+	hBtnExt[0] = GetDlgItem(hWndDlg, IDC_BUTTON_EXT1);
+	hEditMarks[0] = GetDlgItem(hWndDlg, IDC_EDIT_MARKS1);
+	hEditPercentage[0] = GetDlgItem(hWndDlg, IDC_EDIT_PERCENTAGE1);
+	hLbPercentage[0] = GetDlgItem(hWndDlg, IDC_STATIC_PERCENTAGE1);
 
+	hBtnExt[1] = GetDlgItem(hWndDlg, IDC_BUTTON_EXT2);
+	hEditMarks[1] = GetDlgItem(hWndDlg, IDC_EDIT_MARKS2);
+	hEditPercentage[1] = GetDlgItem(hWndDlg, IDC_EDIT_PERCENTAGE2);
+	hLbPercentage[1] = GetDlgItem(hWndDlg, IDC_STATIC_PERCENTAGE2);
+
+	hBtnExt[2] = GetDlgItem(hWndDlg, IDC_BUTTON_EXT3);
+	hEditMarks[2] = GetDlgItem(hWndDlg, IDC_EDIT_MARKS3);
+	hEditPercentage[2] = GetDlgItem(hWndDlg, IDC_EDIT_PERCENTAGE3);
+	hLbPercentage[2] = GetDlgItem(hWndDlg, IDC_STATIC_PERCENTAGE3);
+
+	hEditMarks[3] = GetDlgItem(hWndDlg, IDC_EDIT_MARKS4);
+	hEditPercentage[3] = GetDlgItem(hWndDlg, IDC_EDIT_PERCENTAGE4);
+	hLbPercentage[3] = GetDlgItem(hWndDlg, IDC_STATIC_PERCENTAGE4);
+	
+	// create font for edit controls
+	EditFont = CreateFont(-MulDiv(14, GetDeviceCaps(GetDC(hEditMarks[0]), LOGPIXELSY), 72), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ANTIALIASED_QUALITY, 0, "Microsoft Sans Serif");
+
+	for (i = 0; i < NUM_EXT; ++i)
+	{
+		// change font
+		SendMessage(hEditMarks[i], WM_SETFONT, (WPARAM)EditFont, 0);
+		SendMessage(hEditPercentage[i], WM_SETFONT, (WPARAM)EditFont, 0);
+		SendMessage(hLbPercentage[i], WM_SETFONT, (WPARAM)EditFont, 0);
+		// set new window procedure
+		OldEditProc[i] = SetWindowLongPtr(hEditMarks[i], GWLP_WNDPROC, (LONG_PTR)EditProc);
+	}
+
+	GetWindowRect(hWndDlg, &rc0);
+	DlgSizeBase.cx = rc0.right - rc0.left;
+	DlgSizeBase.cy = rc0.bottom - rc0.top;
+	
+	GetWindowRect(hEditMarks[0], &rc0);
+	GetWindowRect(hLbPercentage[0], &rc1);
+	DlgSizeExtOffSet.cx = rc1.right - rc0.right;
+	GetWindowRect(hEditMarks[1], &rc1);
+	DlgSizeExtOffSet.cy = rc1.top - rc0.top;
+	
 
 	hLbAverage = GetDlgItem(hWndDlg, IDC_STATIC_AVERAGE);
 	StaticFont = CreateFont(-MulDiv(15, GetDeviceCaps(GetDC(hLbAverage), LOGPIXELSY), 72), 0, 0, 0, FW_BOLD, 0, 0, 0, 0, 0, 0, ANTIALIASED_QUALITY, 0, "Microsoft Sans Serif");
@@ -123,7 +171,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	hLbErrorMsg = GetDlgItem(hWndDlg, IDC_STATIC_ERROR_MSG);
 	
 	ShowWindow(hWndDlg, SW_SHOWNORMAL);
-	SetFocus(hEditMarks);
+	SetFocus(hEditMarks[0]);
 
 	return TRUE;
 }
@@ -156,9 +204,18 @@ LRESULT CALLBACK WndDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 		wmEvent = HIWORD(wParam);		
 		switch (wmId)
 		{
-		case IDC_BUTTON_BERECHNEN:
+		case IDC_BUTTON_EXT1:
+			UpdateUI(1);
+			break;
+		case IDC_BUTTON_EXT2:
+			UpdateUI(2);
+			break;
+		case IDC_BUTTON_EXT3:
+			UpdateUI(3);
+			break;		
+		case IDC_BUTTON_CALC:
 			Calc();
-			SetFocus(hEditMarks);
+			SetFocus(hEditMarks[0]);
 			break;
 		case IDM_ABOUT:
 			DialogBox(hInst, (LPCTSTR)IDD_ABOUTBOX, hDlg, (DLGPROC)About);
@@ -180,12 +237,13 @@ LRESULT CALLBACK WndDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 
 LRESULT CALLBACK EditProc(HWND hEditMarksControl, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	int i;
 	LRESULT Selection;
 
 	switch (message)
 	{
 	case WM_SETFOCUS:
-		SendMessage(hEditMarksControl, EM_SETSEL, 0, GetWindowTextLength(hEditMarks));
+		SendMessage(hEditMarksControl, EM_SETSEL, 0, GetWindowTextLength(hEditMarksControl));
 		break;
 
 	case WM_CHAR:
@@ -200,8 +258,9 @@ LRESULT CALLBACK EditProc(HWND hEditMarksControl, UINT message, WPARAM wParam, L
 			ClearNotification();
 			Selection = SendMessage(hEditMarksControl, EM_GETSEL, 0, 0);
 			Selection = HIWORD(Selection) - LOWORD(Selection);
-			if (GetWindowTextLength(hEditMarks) >= MAX_NUM_OF_MARKS
-			    &&  Selection == 0) {
+			if (GetWindowTextLength(hEditMarksControl) >= MAX_NUM_OF_MARKS
+			    &&  Selection == 0)
+			{
 				NotifyLimitedNumberOfMarks();
 				return 0;
 			}			
@@ -220,8 +279,8 @@ LRESULT CALLBACK EditProc(HWND hEditMarksControl, UINT message, WPARAM wParam, L
 			UpdateWindow(hBtnCalc);			
 			SleepEx(100, TRUE);	
 			SendMessage(hBtnCalc, BM_SETSTATE, FALSE, 0);
-			SendMessage(hWndDlg, WM_COMMAND, MAKELONG(IDC_BUTTON_BERECHNEN, BN_CLICKED), (LPARAM)hBtnCalc);			
-			SendMessage(hEditMarksControl, EM_SETSEL, 0, GetWindowTextLength(hEditMarks));
+			SendMessage(hWndDlg, WM_COMMAND, MAKELONG(IDC_BUTTON_CALC, BN_CLICKED), (LPARAM)hBtnCalc);			
+			SendMessage(hEditMarksControl, EM_SETSEL, 0, GetWindowTextLength(hEditMarksControl));
 			break;
 		
 		default:
@@ -229,8 +288,17 @@ LRESULT CALLBACK EditProc(HWND hEditMarksControl, UINT message, WPARAM wParam, L
 			return 0;
 		}
 	}
+
+	// lookup index for old window procedure of current edit control
+	for (i = 0; i < NUM_EXT; ++i)
+	{
+		if (hEditMarks[i] == hEditMarksControl)
+		{
+			break;
+		}
+	}
 	
-	return CallWindowProc(OldEditProc, hEditMarksControl, message, wParam, lParam);
+	return CallWindowProc(OldEditProc[i], hEditMarksControl, message, wParam, lParam);
 }
 
 // message handler for about box.
@@ -246,7 +314,7 @@ LRESULT CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 		if (LOWORD(wParam) == IDOK) 
 		{
 			EndDialog(hDlg, LOWORD(wParam));
-			SetFocus(hEditMarks);			
+			SetFocus(hEditMarks[0]);			
 			return TRUE;
 		}
 		break;
@@ -254,18 +322,44 @@ LRESULT CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
+void UpdateUI(unsigned short extButtonNr)
+{
+	if (extButtonNr == percentages)
+	{
+		SetWindowText(hBtnExt[extButtonNr-1], "-");
+		ShowWindow(hEditPercentage[extButtonNr-1], SW_SHOW);
+		ShowWindow(hLbPercentage[extButtonNr-1], SW_SHOW);
+		ShowWindow(hBtnExt[extButtonNr], SW_SHOW);
+		ShowWindow(hEditMarks[extButtonNr], SW_SHOW);
+		ShowWindow(hEditPercentage[extButtonNr], SW_SHOW);
+		ShowWindow(hLbPercentage[extButtonNr], SW_SHOW);
+		SetWindowPos(hWndDlg,
+			NULL, 0, 0,
+			DlgSizeBase.cx + DlgSizeExtOffSet.cx,
+			DlgSizeBase.cy + DlgSizeExtOffSet.cy * extButtonNr,
+			SWP_NOMOVE | SWP_NOZORDER);
+		SetWindowPos(hWndDlg,
+			NULL, 0, 0,
+			DlgSizeBase.cx + DlgSizeExtOffSet.cx,
+			DlgSizeBase.cy + DlgSizeExtOffSet.cy * extButtonNr,
+			SWP_NOMOVE | SWP_NOZORDER);
+
+		++percentages;
+	}
+}
+
 void Calc()
 {	
 	int NumOfMarks;
 	char buf[MAX_NUM_OF_MARKS + 1];
 
-	NumOfMarks = GetWindowTextLength(hEditMarks);
+	NumOfMarks = GetWindowTextLength(hEditMarks[0]);
 	if (NumOfMarks)
 	{		
 		int i, Sum;
 		float Average;
 		Sum = 0; Average = 0;
-		GetWindowText(hEditMarks, buf, NumOfMarks + 1);
+		GetWindowText(hEditMarks[0], buf, NumOfMarks + 1);
 		for (i=0; i<NumOfMarks; i++)
 		{
 			Sum += buf[i]-48;	
