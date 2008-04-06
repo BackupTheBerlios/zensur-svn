@@ -28,8 +28,10 @@
 #define IDC_STATIC_PERCENTAGE2          1014
 #define IDC_STATIC_PERCENTAGE3          1015
 #define IDC_STATIC_PERCENTAGE4          1016
-#define IDC_STATIC_AVERAGE              1017
-#define IDC_STATIC_ERROR_MSG            1018
+#define IDC_STATIC_TEXT_AVERAGE         1017
+#define IDC_STATIC_GROUPBOX_AVERAGE		1018
+#define IDC_STATIC_AVERAGE              1019
+#define IDC_STATIC_ERROR_MSG            1020
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -39,7 +41,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        139
 #define _APS_NEXT_COMMAND_VALUE         32779
-#define _APS_NEXT_CONTROL_VALUE         1019
+#define _APS_NEXT_CONTROL_VALUE         1021
 #define _APS_NEXT_SYMED_VALUE           110
 #endif
 #endif
