@@ -1,9 +1,30 @@
+/*
+ * This file is part of the program Zensur.
+ * 
+ * Copyright (C) 2009 Jan Möller
+ *
+ *
+ * The program Zensur is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * The program Zensur is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 #include "Zensur.h"
 #define MAX_LOADSTRING		100
 #define MAX_NUM_OF_MARKS	50
 #define NUM_EXT				4
 
-// Global Variables:
+// global variables:
 static BOOL bErrorMsgDisplayed = FALSE;
 static HINSTANCE hInst;										// current instance
 static HWND hWndDlg;
@@ -22,8 +43,7 @@ static SIZE DlgSizeBase;
 static POINT LbTxtAveragePosBase, GbAveragePosBase, LbAveragePosBase, BtnCalcPosBase;
 static SIZE ExtOffSet;
 
-static unsigned char percentages = 1;
-
+static unsigned char numPercentages = 1;
 
 // forward declarations of functions included in this code module:
 ATOM				MyRegisterClass(HINSTANCE hInstance);
@@ -35,12 +55,14 @@ LRESULT CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 void                UpdateUI(unsigned short);
 void				MoveBottomUIElements(int y);
 void				SimulateCalcBtnClick();
-void                Calc();
-void				NotifyInvalidMark();
-void				NotifyLimitedNumberOfMarks();
-void				NotifyInvalidPercentage();
-void				NotifyInvalidSumOfPercentages();
-void				ClearNotification();
+void                Calc(void);
+void				NotifyInvalidMark(void);
+void				NotifyLimitedNumberOfMarks(void);
+void				NotifyInvalidPercentage(void);
+void				NotifyInvalidSumOfPercentages(void);
+void				NotifyAtLeastOneMark(void);
+void				NotifyError(LPCTSTR errMsg);
+void				ClearNotification(void);
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
                        HINSTANCE hPrevInstance,
@@ -228,7 +250,7 @@ LRESULT CALLBACK WndDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
 		SetBkColor((HDC)wParam, GetSysColor(COLOR_BTNFACE));
 		return (LRESULT)GetStockObject(NULL_BRUSH);
 	
-	// process the application menu
+	// process the application menu and extension buttons
 	case WM_COMMAND:
 		wmId    = LOWORD(wParam); 
 		wmEvent = HIWORD(wParam);		
@@ -383,8 +405,7 @@ LRESULT CALLBACK EditPercentagesProc(HWND hEditPercentagesControl, UINT message,
 	return CallWindowProc(OldEditPercentagesProc[i], hEditPercentagesControl, message, wParam, lParam);
 }
 
-// message handler for about box.
-
+// message handler for about box
 LRESULT CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
@@ -406,7 +427,7 @@ LRESULT CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 void UpdateUI(unsigned short extButtonNo)
 {
-	if (extButtonNo == percentages)
+	if (extButtonNo == numPercentages)
 	{
 		SetWindowText(hBtnExt[extButtonNo-1], "-");
 		if (extButtonNo == 1)
@@ -427,17 +448,22 @@ void UpdateUI(unsigned short extButtonNo)
 
 		MoveBottomUIElements(ExtOffSet.cy * extButtonNo);
 
-		++percentages;
-	} else if (extButtonNo < percentages)
+		++numPercentages;
+	} else if (extButtonNo < numPercentages)
 	{
-		while (extButtonNo < percentages)
+		while (extButtonNo < numPercentages)
 		{
-			ShowWindow(hBtnExt[percentages-1], SW_HIDE);
-			ShowWindow(hEditMarks[percentages-1], SW_HIDE);
-			ShowWindow(hEditPercentages[percentages-1], SW_HIDE);
-			ShowWindow(hLbPercentages[percentages-1], SW_HIDE);
-			SetWindowText(hBtnExt[percentages-2], "+");
-			--percentages;
+			ShowWindow(hBtnExt[numPercentages-1], SW_HIDE);
+			ShowWindow(hEditMarks[numPercentages-1], SW_HIDE);
+			ShowWindow(hEditPercentages[numPercentages-1], SW_HIDE);
+			ShowWindow(hLbPercentages[numPercentages-1], SW_HIDE);
+			SetWindowText(hBtnExt[numPercentages-2], "+");
+
+ 			// clear unused text boxes
+      SetWindowText(hEditMarks[numPercentages-1], "");
+			SetWindowText(hEditPercentages[numPercentages-1], "");
+
+			--numPercentages;
 		}
 		if (extButtonNo == 1)
 		{
@@ -480,8 +506,7 @@ void MoveBottomUIElements(int y)
 }
 void SimulateCalcBtnClick()
 {
-	int i;
-
+	SetFocus(hBtnCalc);
 	ClearNotification();
 	SendMessage(hBtnCalc, BM_SETSTATE, TRUE, 0);
 	UpdateWindow(hBtnCalc);			
@@ -490,48 +515,97 @@ void SimulateCalcBtnClick()
 	SendMessage(hWndDlg, WM_COMMAND, MAKELONG(IDC_BUTTON_CALC, BN_CLICKED), (LPARAM)hBtnCalc);
 }
 
-void Calc()
-{	
-	int NumOfMarks;
-	char buf[MAX_NUM_OF_MARKS + 1];
+void Calc(void)
+{
+	int i, j;
+	float average = 0.0;
 
-	NumOfMarks = GetWindowTextLength(hEditMarks[0]);
-	if (NumOfMarks)
-	{		
-		int i, Sum;
-		float Average;
-		Sum = 0; Average = 0;
-		GetWindowText(hEditMarks[0], buf, NumOfMarks + 1);
-		for (i=0; i<NumOfMarks; i++)
+	int numOfMarks[NUM_EXT];
+	char marks[NUM_EXT][MAX_NUM_OF_MARKS + 1];
+  int sumMarks = 0;
+
+	int percentages[NUM_EXT];	
+  int sumPercentages = 0;
+	char buf[7];
+
+	// read marks
+	for (i = 0; i < numPercentages; ++i)
+	{
+		numOfMarks[i] = GetWindowTextLength(hEditMarks[i]);
+    		
+		// check: there must be at least one mark per field	
+		if (numOfMarks[i] < 1)
 		{
-			Sum += buf[i]-48;	
+			NotifyAtLeastOneMark();
+			return;
 		}
-		Average = (float)Sum /(float)NumOfMarks;
-		_snprintf_s(buf, MAX_NUM_OF_MARKS + 1, 6, "%.4f", Average);
-		SetWindowText(hLbAverage, buf);
+
+    GetWindowText(hEditMarks[i], marks[i], numOfMarks[i] + 1);
 	}
+	
+	// read percentages
+	if (numPercentages == 1)
+	{
+		percentages[0] = 100;
+	}
+	else 
+	{		
+		for (i = 0; i < numPercentages; ++i)
+		{
+			int l = GetWindowTextLength(hEditPercentages[i]);
+			GetWindowText(hEditPercentages[i], buf, l + 1);
+			percentages[i] = atoi(buf);
+			sumPercentages += percentages[i];
+		}
+
+		// check: sum of percentages must be 100%
+		if (sumPercentages != 100)
+		{
+			NotifyInvalidSumOfPercentages();
+			return;
+		}
+	}
+
+  // calc average
+  for (i = 0; i < numPercentages; ++i)
+	{	
+    sumMarks = 0;
+	  for (j = 0; j < numOfMarks[i]; j++)
+	  {
+		  sumMarks += marks[i][j] - 48;	
+	  }
+	  average += (float)sumMarks / (float)numOfMarks[i] * (float)percentages[i] / 100.0;	  
+	}
+  _snprintf_s(buf, 7, 6, "%.4f", average);
+	SetWindowText(hLbAverage, buf);
 }
 
 void NotifyInvalidMark()
 {
-	SetWindowText(hLbErrorMsg, TEXT("Sie können nur die Zahlen 1 bis 6 eingeben."));
-	bErrorMsgDisplayed = TRUE;
+	NotifyError(TEXT("Sie können nur die Zahlen 1 bis 6 eingeben."));
 }
 
 void NotifyLimitedNumberOfMarks()
 {
-	SetWindowText(hLbErrorMsg, TEXT("Sie können maximal 50 Zensuren eingeben."));
-	bErrorMsgDisplayed = TRUE;
+	NotifyError(TEXT("Sie können maximal 50 Zensuren eingeben."));
 }
 
 void NotifyInvalidPercentage()
 {
-	SetWindowText(hLbErrorMsg, TEXT("Sie können nur die Zahlen 0 bis 9 eingeben."));
-	bErrorMsgDisplayed = TRUE;
+	NotifyError(TEXT("Sie können nur die Zahlen 0 bis 9 eingeben."));
 }
 void NotifyInvalidSumOfPercentages()
 {
-	SetWindowText(hLbErrorMsg, TEXT("Die Summe der prozentualen Anteile muss 100% betragen."));
+	NotifyError(TEXT("Die Summe aller prozentualen Anteile muss 100% betragen."));
+}
+void NotifyAtLeastOneMark()
+{
+	NotifyError(TEXT("Jedes Feld muss mindestens eine Zensur enthalten."));
+}
+void NotifyError(LPCTSTR errMsg)
+{
+	SetWindowText(hLbErrorMsg, errMsg);
+	SetWindowText(hLbAverage, "0.0000");
 	bErrorMsgDisplayed = TRUE;
 }
 void ClearNotification()
@@ -543,4 +617,3 @@ void ClearNotification()
 		bErrorMsgDisplayed = FALSE;
 	}
 }
-
