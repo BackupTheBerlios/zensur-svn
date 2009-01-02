@@ -12,8 +12,8 @@ Var StartMenuGroup
    \r\n\r\n$_CLICK"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "Graphics\Welcome.bmp"
 !define MUI_PAGE_HEADER_SUBTEXT \
-  "Diese Software ist unter der GNU General Public License \
-   (GPL) lizensiert. Sie können sie ändern und weiterzugeben."
+  "Die Software ist unter der GNU General Public License \
+   (GPL) lizensiert. Sie können diese ändern und weitergeben."
 !define MUI_LICENSEPAGE_TEXT_BOTTOM \
   "In aller Kürze: Sie haben das Recht, die Software zu jedem Zweck \
    einzusetzen. Sie können die Software weitergeben, sofern Sie dem \
@@ -31,7 +31,7 @@ Var StartMenuGroup
 
 # Installer pages
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE License.txt
+!insertmacro MUI_PAGE_LICENSE Lizenz.txt
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_STARTMENU StartMenuSelection $StartMenuGroup
 !insertmacro MUI_PAGE_INSTFILES
